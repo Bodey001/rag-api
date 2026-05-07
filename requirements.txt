@@ -1,0 +1,14 @@
+fastapi
+uvicorn
+sqlalchemy
+psycopg2-binary
+python-dotenv
+nomic
+docx2txt
+textract
+PyPDF2
+PyMuPDF
+docx
+requests
+pydantic
+python-multipart

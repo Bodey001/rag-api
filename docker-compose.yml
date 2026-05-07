@@ -1,0 +1,82 @@
+services:
+  backend:
+    build:
+      context: ./
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./.env
+    depends_on:
+      ollama-nomic-embed-text:
+        condition: service_healthy
+      pgvector-db:
+        condition: service_healthy
+
+
+# ollama pull nomic-embed-text
+  ollama-nomic-embed-text:
+    image: ollama/ollama:latest
+    container_name: ollama-nomic-embed-text
+    profiles: [cpu-local]
+    env_file:
+      - ./.env
+    ports:
+      - "${EMBEDDING_PORT}:${EMBEDDING_PORT}"
+    volumes:
+      - ./ollama_models:/root/.ollama
+    environment:
+      - OLLAMA_KEEP_ALIVE=-1       # Keep model loaded indefinitely
+      - OLLAMA_ORIGINS=*           # Allow cross-container requests
+    entrypoint: ["/bin/sh", "-c", "ollama serve && sleep 10 && ollama pull ${EMBEDDING_MODEL} && wait"]
+    healthcheck:
+      test: ["CMD", "ollama", "list", "${EMBEDDING_MODEL}"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+    restart: unless-stopped
+
+
+  # The PostgreSQL Database with pgvector pre-installed
+  pgvector-db:
+    image: pgvector/pgvector:pg16
+    container_name: pgvector_db
+    env_file:
+      - ./.env
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgvector_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rag"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+    restart: unless-stopped
+
+  # The pgAdmin 4 Management GUI
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin_gui
+    env_file:
+      - .env
+    ports:
+      - "5050:80"
+    depends_on:
+      pgvector-db:
+        condition: service_healthy
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    healthcheck:
+      test: ["CMD", "wget", "-O", "-", "http://localhost:80/misc/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+    restart: unless-stopped
+
+volumes:
+  pgvector_data:
+  pgadmin_data:
