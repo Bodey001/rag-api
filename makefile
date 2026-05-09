@@ -3,9 +3,12 @@
 build:
 	docker compose --profile cpu-local up --build -d
 
+start:
+# Start all containers including ollama
+	docker compose --profile cpu-local start backend ollama-nomic-embed-text pgvector-db
 stop:
 # Stop all containers including ollama
-	docker compose --profile cpu-local stop backend ollama-nomic-embed-text pgvector-db pgadmin
+	docker compose --profile cpu-local stop backend ollama-nomic-embed-text pgvector-db
 
 clean:
 # Wipe pgdata volume, stop and remove all containers (incl. Ollama)
