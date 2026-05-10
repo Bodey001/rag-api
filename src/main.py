@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 import logging
 from src.router.uploads_router import router as uploads_router
+from src.router.inference_router import router as inference_router
 from config.database import get_db_connection, init_db
 import logging
 
@@ -12,6 +13,7 @@ logging.basicConfig(
 app = FastAPI()
 logger = logging.getLogger(__name__)
 app.include_router(uploads_router, prefix="/api/v1")
+app.include_router(inference_router, prefix="/api/v1")
 
 
 @app.on_event("startup")

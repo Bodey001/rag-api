@@ -1,5 +1,6 @@
 # inputs documents and chunks them into smaller pieces no langchain
 
+from sre_parse import ANY
 from PyPDF2 import PdfReader
 from docx import Document as DocxDocument
 
@@ -15,9 +16,9 @@ logger = logging.getLogger(__name__)
 chunk_size = 1000
 
 
-class Ingestion(BaseModel):
+class DocActions(BaseModel):
 
-    def ingest_document(self, file: UploadFile) -> Tuple[Optional[str], MetadataSchema]:
+    async def ingest_document(self, file: UploadFile) -> Tuple[Optional[str], MetadataSchema]:
         try:
             if file.filename.endswith('.pdf'):
                 reader = PdfReader(file.file)
@@ -56,8 +57,25 @@ class Ingestion(BaseModel):
             return None, None
 
     # chunk the text into smaller pieces based on the chunk_size
-    def chunk_text(self, text: str) -> List[str]:
+    async def chunk_text(self, text: str) -> List[str]:
         chunks = []
         for i in range(0, len(text), chunk_size):
             chunks.append(text[i:i+chunk_size])
         return chunks
+
+    async def augment_content(self, content: str, query: str) -> str:
+        prompt = f"""
+        You are a helpful assistant. Use the following context to answer the question.
+
+        CONTEXT:
+        {content}
+
+        QUESTION:
+        {query}
+        """
+        return prompt
+
+    # iterate through the string. if it has \n, then move to a new line
+    async def generate_response(self, response: str) -> str:
+        lines = response.split('\n')
+        return '\n'.join(lines)

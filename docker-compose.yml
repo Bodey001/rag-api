@@ -3,6 +3,7 @@ services:
     build:
       context: ./
       dockerfile: Dockerfile
+    container_name: rag-backend
     ports:
       - "8000:8000"
     env_file:
@@ -10,11 +11,12 @@ services:
     depends_on:
       ollama-nomic-embed-text:
         condition: service_healthy
+      ollama-qwen:
+        condition: service_healthy
       pgvector-db:
         condition: service_healthy
 
 
-# ollama pull nomic-embed-text
   ollama-nomic-embed-text:
     image: ollama/ollama:latest
     container_name: ollama-nomic-embed-text
@@ -22,21 +24,45 @@ services:
     env_file:
       - ./.env
     ports:
-      - "${EMBEDDING_PORT}:${EMBEDDING_PORT}"
+      - "${EMBEDDING_LOCAL_PORT}:${OLLAMA_DOCKER_PORT}"
     volumes:
-      - ./ollama_models:/root/.ollama
+      - ./ollama_models/nomic-embed-text:/root/.ollama
     environment:
       - OLLAMA_KEEP_ALIVE=-1       # Keep model loaded indefinitely
       - OLLAMA_ORIGINS=*           # Allow cross-container requests
-    entrypoint: ["/bin/sh", "-c", "ollama serve && sleep 10 && ollama pull ${EMBEDDING_MODEL} && wait"]
+    # Automatically starts the server and pulls the embedding model
+    entrypoint: ["/bin/sh", "-c", "ollama serve & sleep 10 && ollama pull ${EMBEDDING_MODEL} && wait"]
     healthcheck:
-      test: ["CMD", "ollama", "list", "${EMBEDDING_MODEL}"]
+      test: ["CMD-SHELL", "ollama list | grep -q ${EMBEDDING_MODEL}"]
       interval: 30s
       timeout: 10s
       retries: 10
       start_period: 60s
     restart: unless-stopped
 
+
+  ollama-qwen:
+    image: ollama/ollama:latest
+    container_name: ollama-qwen
+    profiles: [cpu-local]
+    env_file:
+      - ./.env
+    ports:
+      - "${GENERATION_LOCAL_PORT}:${OLLAMA_DOCKER_PORT}"
+    volumes:
+      - ./ollama_models/qwen:/root/.ollama
+    environment:
+      - OLLAMA_KEEP_ALIVE=-1       # Keep model loaded indefinitely
+      - OLLAMA_ORIGINS=*           # Allow cross-container requests
+    # Automatically starts the server and pulls the generation model
+    entrypoint: ["/bin/sh", "-c", "ollama serve & sleep 10 && ollama pull ${GENERATION_MODEL} && wait"]
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list | grep -q ${GENERATION_MODEL}"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+    restart: unless-stopped
 
   # The PostgreSQL Database with pgvector pre-installed
   pgvector-db:
@@ -45,11 +71,11 @@ services:
     env_file:
       - ./.env
     ports:
-      - "5433:5432"
+      - "${POSTGRES_PORT_LOCAL}:${POSTGRES_PORT_DOCKER}"
     volumes:
       - pgvector_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U rag"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
       timeout: 10s
       retries: 10

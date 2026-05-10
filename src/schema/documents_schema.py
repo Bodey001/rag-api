@@ -28,3 +28,9 @@ class ChunkSchema(BaseModel):
     embedding_model: str
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+
+class ChunkResult(BaseModel):
+    document_id: int
+    chunk_index: int
+    content: str
+    distance: float

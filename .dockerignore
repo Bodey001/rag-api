@@ -1,0 +1,12 @@
+.env
+ollama_models/
+pgvector_data/
+pgadmin_data/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pyw
+*.pyz
+*.pywz
+*.pyzw
